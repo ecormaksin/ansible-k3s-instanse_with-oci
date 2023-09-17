@@ -1,0 +1,4 @@
+work/*
+!work/.gitkeep
+vars_per_env.yml
+playbooks/test.yml

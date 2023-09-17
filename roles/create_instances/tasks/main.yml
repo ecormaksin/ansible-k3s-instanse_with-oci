@@ -1,0 +1,151 @@
+- name: "Create or Update a Vcn"
+  oracle.oci.oci_network_vcn:
+    compartment_id: "{{ oci.compartment_id }}"
+    display_name: "{{ oci.vcn.display_name }}"
+    cidr_block: "{{ vcn_cidr_block }}"
+    dns_label: "{{ oci.vcn.dns_label }}"
+  register: vcn_createion_result
+
+- name: "Get OCID of the Vcn"
+  ansible.builtin.set_fact:
+    vcn_id: "{{ vcn_createion_result.vcn.id }}"
+    route_table_id: "{{ vcn_createion_result.vcn.default_route_table_id }}"
+    security_list_id: "{{ vcn_createion_result.vcn.default_security_list_id }}"
+
+- name: "Create or Update an InternetGateway"
+  oracle.oci.oci_network_internet_gateway:
+    compartment_id: "{{ oci.compartment_id }}"
+    vcn_id: "{{ vcn_id }}"
+    name: "{{ oci.internet_gateway.name }}"
+    is_enabled: true
+    state: 'present'
+  register: ig_creation_result
+
+- name: "Get OCID of the InternetGateway"
+  ansible.builtin.set_fact:
+    internet_gateway_id: "{{ ig_creation_result.internet_gateway.id }}"
+
+- name: "Update a RouteTable"
+  oracle.oci.oci_network_route_table:
+    compartment_id: "{{ oci.compartment_id }}"
+    vcn_id: "{{ vcn_id }}"
+    id: "{{ route_table_id }}"
+    name: "{{ oci.route_table.name }}"
+    route_rules:
+      - cidr_block: "{{ quad_zero_route }}"
+        network_entity_id: "{{ internet_gateway_id }}"
+    state: 'present'
+
+- name: "Update a SecurityList"
+  oracle.oci.oci_network_security_list:
+    compartment_id: "{{ oci.compartment_id }}"
+    vcn_id: "{{ vcn_id }}"
+    id: "{{ security_list_id }}"
+    name: "{{ oci.security_list.name }}"
+    egress_security_rules:
+      - destination: "{{ quad_zero_route }}"
+        protocol: "all"
+    ingress_security_rules:
+      - description: "SSH"
+        source: "{{ quad_zero_route }}"
+        protocol: "6" # TCP
+        tcp_options:
+          destination_port_range:
+            max: 22
+            min: 22
+      - description: "K3s: Required only for HA with embedded etcd"
+        source: "{{ quad_zero_route }}"
+        protocol: "6" # TCP
+        tcp_options:
+          destination_port_range:
+            max: 2380
+            min: 2370
+      - description: "K3s: K3s supervisor and Kubernetes API Server"
+        source: "{{ quad_zero_route }}"
+        protocol: "6" # TCP
+        tcp_options:
+          destination_port_range:
+            max: 6443
+            min: 6443
+      - description: "K3s: Required only for Flannel VXLAN"
+        source: "{{ quad_zero_route }}"
+        protocol: "17" # UDP
+        udp_options:
+          destination_port_range:
+            max: 8472
+            min: 8472
+      - description: "K3s: Kubelet metrics"
+        source: "{{ quad_zero_route }}"
+        protocol: "6" # TCP
+        tcp_options:
+          destination_port_range:
+            max: 10250
+            min: 10250
+      - description: "K3s: Required only for Flannel Wireguard with IPv4"
+        source: "{{ quad_zero_route }}"
+        protocol: "17" # UDP
+        udp_options:
+          destination_port_range:
+            max: 51820
+            min: 51820
+      - description: "K3s: Required only for Flannel Wireguard with IPv6"
+        source: "{{ quad_zero_route }}"
+        protocol: "17" # UDP
+        udp_options:
+          destination_port_range:
+            max: 51821
+            min: 51821
+
+- name: "Create a SubNet"
+  oracle.oci.oci_network_subnet:
+    compartment_id: "{{ oci.compartment_id }}"
+    vcn_id: "{{ vcn_id }}"
+    cidr_block: "{{ oci.subnet.cidr_block }}"
+    dns_label: "{{ oci.subnet.dns.label }}"
+    display_name: "{{ oci.subnet.name }}"
+    route_table_id: "{{ route_table_id }}"
+    security_list_ids: [ "{{ security_list_id }}" ]
+  register: subnet_creation_result
+
+# - name: "Get OCID of the Subnet"
+#   ansible.builtin.set_fact:
+#     subnet_id: "{{ subnet_creation_result.subnet.id }}"
+
+# - name: "Create Compute Instances"
+#   ignore_errors: true
+#   oracle.oci.oci_compute_instance:
+#     agent_config:
+#       are_all_plugins_disabled: false
+#       plugins_config:
+#         - desired_state: DISABLED
+#           name: Vulnerability Scanning
+#         - desired_state: DISABLED
+#           name: Management Agent
+#         - desired_state: ENABLED
+#           name: Custom Logs Monitoring
+#         - desired_state: ENABLED
+#           name: Compute Instance Monitoring
+#         - desired_state: DISABLED
+#           name: Bastion
+#     availability_domain: "{{ oci.availability_domain.name }}"
+#     compartment_id: "{{ oci.compartment_id }}"
+#     create_vnic_details:
+#       assign_public_ip: true
+#       subnet_id: "{{ subnet_id }}"
+#     display_name: "{{ item }}"
+#     is_pv_encryption_in_transit_enabled: true
+#     launch_options:
+#       boot_volume_type: PARAVIRTUALIZED
+#       is_consistent_volume_naming_enabled: true
+#       network_type: PARAVIRTUALIZED
+#       remote_data_volume_type: PARAVIRTUALIZED
+#     metadata:
+#       ssh_authorized_keys: "{{ lookup('file', ansible_ssh_public_key_file ) }}"
+#     shape: "{{ instance_shape }}"
+#     shape_config:
+#       memory_in_gbs: 12
+#       ocpus: 2
+#     source_details:
+#       image_id: "{{ image_id }}"
+#       source_type: image
+#   with_items: "{{ oci.compute.instance.names }}"

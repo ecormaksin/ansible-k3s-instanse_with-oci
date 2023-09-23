@@ -7,23 +7,25 @@ oci:
   availability_domain:
     name: "<availability_domain> e.g. ClFL:AP-OSAKA-1-AD-1"
   vcn:
-    display_name: "<display_name> e.g. vcn-k8s-01"
-    dns_label: "<vcn_dns_label> e.g. vcnk8s01"
+    display_name: "<display_name> e.g. vcn-k3s-01"
+    dns_label: "<vcn_dns_label> e.g. vcnk3s01"
   internet_gateway:
-    name: "<internet_gateway_name> e.g. igk8s01"
+    name: "<internet_gateway_name> e.g. igk3s01"
   route_table:
-    name: "<route_table_name> e.g. rtk8s01"
+    name: "<route_table_name> e.g. rtk3s01"
   security_list:
-    name: "<security_list_name> e.g. slk8s01"
+    name: "<security_list_name> e.g. slk3s01"
   subnet:
-    name: "<subnet_name> e.g. snk8s01"
+    name: "<subnet_name> e.g. snk3s01"
     dns:
-      label: "<subnet_dns_label> e.g. sndnslblk8s01"
+      label: "<subnet_dns_label> e.g. sndnslblk3s01"
     cidr_block: "10.0.0.0/24"
   compute:
     image:
       operating_system: "Canonical Ubuntu"
       operating_system_version: "22.04"
-    instance:
-      names:
-        - vm-01 #example
+    instances:
+      - name: k3s-server
+        hostname_label: k3sserver
+      - name: k3s-agent
+        hostname_label: k3sagent

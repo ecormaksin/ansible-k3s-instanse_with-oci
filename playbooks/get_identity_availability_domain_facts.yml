@@ -1,0 +1,7 @@
+- name: "Get Availability Domains"
+  hosts: localhost
+
+  tasks:
+    - name: "Get Availability Domains"
+      oracle.oci.oci_identity_availability_domain_facts:
+        compartment_id: "{{ oci.compartment_id }}"

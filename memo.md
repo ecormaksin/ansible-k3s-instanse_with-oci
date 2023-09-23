@@ -26,9 +26,9 @@
   ansible-galaxy collection install oracle.oci
   ```
 
-- Playbookの実行時に `oci python sdk required for this module.` でエラーになり、Ansible設定ファイルの `interpreter_python` へパスを指定する必要があった。(pyenvでPythonをインストールしたため？)
-
 - Ansible Playbookのタスク実行結果の出力(json)を利用するため、`community.general.json_query` を使う。このモジュールはJMESPathを呼び出しているので、コントロラー上にJMESPath(Ubuntuのパッケージマネージャーでは`jp`)が必要。また、Pythonからも参照できる必要があるので、`pip install jmespath`を実行してパッケージをインストールする。
+
+- Ansible コントローラー上のPythonをpyenvでインストールしている場合、Pythonのパスが正しく認識されていないためなのか、`oci python sdk required for this module` エラーが発生した。そのため、`ansible_python_interpreter` でパスを明示的に指定する必要があった。
 
 ## Playbookの実行
 
